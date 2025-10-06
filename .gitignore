@@ -18,3 +18,4 @@ node_modules
 /scripts/deployments/deployments/mainnet
 /scripts/deployments/deployments/sepolia
 ```
+out

@@ -9,7 +9,7 @@ import "hardhat-abi-exporter";
 import "hardhat-contract-sizer";
 
 import dotenv from "dotenv";
-import {SigningKey} from '@ethersproject/signing-key'
+import { SigningKey } from "@ethersproject/signing-key";
 dotenv.config();
 
 let pk: string | SigningKey = <string>process.env.SEPOLIA_PK;
@@ -31,22 +31,45 @@ const config: HardhatUserConfig = {
       },
     },
   },
-  networks: {
-    bscMainnet:{
-      url: "https://bsc-dataseed.bnbchain.org/",
-      chainId: 56,
-      gas: 50_000,
-      gasPrice: "auto",
-      accounts: [pk],
-      timeout: 50_000,
+  abiExporter: [
+    {
+      path: "./abi",
+      runOnCompile: true,
+      clear: true, // wipe abi dir each compile
+      flat: true, // single-level files
+      spacing: 2,
+      pretty: false,
+      only: [
+        "^VoucherModuleHTS$",
+        "^HTSAssociationHelper$",
+        "^MintingHub$",
+        "^OracleFreeDollar$",
+      ],
+      // (optional) you can also exclude interface-looking names:
+      // except: ["^I[A-Z].*"]
     },
-    bnbtestnet:{
-        url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-        chainId: 97,
-        gas: 50_000,
-        gasPrice: "auto",
-        accounts: [pk],
-        timeout: 50_000,
+  ],
+  networks: {
+    // bscMainnet: {
+    //   url: "https://bsc-dataseed.bnbchain.org/",
+    //   chainId: 56,
+    //   gas: 50_000,
+    //   gasPrice: "auto",
+    //   accounts: [pk],
+    //   timeout: 50_000,
+    // },
+    // bnbtestnet: {
+    //   url: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+    //   chainId: 97,
+    //   gas: 50_000,
+    //   gasPrice: "auto",
+    //   accounts: [pk],
+    //   timeout: 50_000,
+    // },
+    hederaTestnet: {
+      chainId: 296,
+      url: process.env.HEDERA_RPC_URL || "https://testnet.hashio.io/api",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },
   namedAccounts: {
@@ -59,9 +82,6 @@ const config: HardhatUserConfig = {
       bsc: etherscanapikey,
       bscTestnet: etherscanapikey,
     },
-  },
-  sourcify: {
-    enabled: true,
   },
   paths: {
     sources: "./contracts",
@@ -79,14 +99,6 @@ const config: HardhatUserConfig = {
   gasReporter: {
     enabled: true,
     currency: "USD",
-  },
-  abiExporter: {
-    path: "./abi",
-    clear: true,
-    runOnCompile: true,
-    flat: true,
-    spacing: 4,
-    pretty: false,
   },
   mocha: {
     timeout: 120000,

@@ -6,7 +6,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const {
     deployments: { get },
   } = hre;
-  const ofdAddress: string = ''
+  const ofdAddress: string = '0xa79bD079986b7D8C9D98021817dCf7085741D991'
   const initialRatePPM: number = 50000
 
   if(ofdAddress.length === 0 || Number.isNaN(initialRatePPM)) {
@@ -17,7 +17,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const savingsDeployment = await get("Savings");
   console.log(
-    `Verify Savings:\nnpx hardhat verify --network bnbtestnet ${savingsDeployment.address} ${ofdAddress} ${initialRatePPM} \n`
+    `Verify Savings:\nnpx hardhat verify --network hederaTestnet ${savingsDeployment.address} ${ofdAddress} ${initialRatePPM} \n`
   );
 };
 export default deploy;

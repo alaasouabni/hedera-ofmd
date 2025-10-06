@@ -8,10 +8,10 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ethers,
   } = hre;
 
-  const ofdAddress: string = ''
-  const positionFactoryAddress: string = '';
-  const positionRollerAddress: string = '';
-  const savingsAddress: string = '';
+  const ofdAddress: string = '0xa79bD079986b7D8C9D98021817dCf7085741D991'
+  const positionFactoryAddress: string = '0x7F1Cbf264E60D844f60BdFb22314389cDD50F292';
+  const positionRollerAddress: string = '0x253fa424a35ab579bE20F878cBcf9ecbeAe23B65';
+  const savingsAddress: string = '0xd5183DD54aBE2dc040213516d19c5532405762D6';
 
   if(ofdAddress.length === 0 || positionFactoryAddress.length === 0 || positionRollerAddress.length === 0 || savingsAddress.length === 0) {
     throw new Error("OFD or Position Factory address is not set, please set it in the script");
@@ -30,7 +30,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   //let mintingHubContract = await get("MintingHub");
 
-  console.log(`Verify mintingHubContract: npx hardhat verify --network bnbtestnet ${mintingHubAddress} ${ofdAddress} ${savingsAddress} ${positionRollerAddress} ${positionFactoryAddress} \n`);
+  console.log(`Verify mintingHubContract: npx hardhat verify --network hederaTestnet ${mintingHubAddress} ${ofdAddress} ${savingsAddress} ${positionRollerAddress} ${positionFactoryAddress} \n`);
 
   // create a minting hub too while we have no OFD supply
   try {

@@ -16,6 +16,7 @@ import { deployContract } from "../deployUtils";
 const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const paramFile = "paramsOracleFreeDollar.json";
   let chainId = hre.network.config["chainId"];
+  console.log(`\nDeploying OracleFreeDollar on chainId ${chainId} ...\n`);
   let paramsArr = require(__dirname + `/../parameters/${paramFile}`);
 
   // find config for current chain
@@ -30,12 +31,12 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   let OFD = await deployContract(hre, "OracleFreeDollar", [minApplicationPeriod]);
   console.log(
-    `Verify OracleFreeDollar:\nnpx hardhat verify --network bnbtestnet ${await OFD.getAddress()} ${minApplicationPeriod}`
+    `Verify OracleFreeDollar:\nnpx hardhat verify --network hederaTestnet ${await OFD.getAddress()} ${minApplicationPeriod}`
   );
 
   let reserve = await OFD.reserve();
   console.log(
-    `Verify Equity:\nnpx hardhat verify --network bnbtestnet ${reserve} ${await OFD.getAddress()}\n`
+    `Verify Equity:\nnpx hardhat verify --network hederaTestnet ${reserve} ${await OFD.getAddress()}\n`
   );
 };
 export default deploy;

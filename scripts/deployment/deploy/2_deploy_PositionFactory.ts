@@ -10,7 +10,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const positionFactoryDeployment = await get("PositionFactory");
   console.log(
-    `Verify PositionFactory:\nnpx hardhat verify --network bnbtestnet ${positionFactoryDeployment.address}\n`
+    `Verify PositionFactory:\nnpx hardhat verify --network hederaTestnet ${positionFactoryDeployment.address}\n`
   );
 };
 export default deploy;

@@ -6,7 +6,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const {
     deployments: { get },
   } = hre;
-  const ofdAddress = ''
+  const ofdAddress = '0xa79bD079986b7D8C9D98021817dCf7085741D991'
 
   if(ofdAddress.length === 0) {
     throw new Error("OFD address is not set, please set it in the script");
@@ -16,7 +16,7 @@ const deploy: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const positionRollerDeployment = await get("PositionRoller");
   console.log(
-    `Verify PositionRoller:\nnpx hardhat verify --network bnbtestnet ${positionRollerDeployment.address} ${ofdAddress} \n`
+    `Verify PositionRoller:\nnpx hardhat verify --network hederaTestnet ${positionRollerDeployment.address} ${ofdAddress} \n`
   );
 };
 export default deploy;

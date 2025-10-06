@@ -39,6 +39,8 @@
     "solidity-coverage": "^0.8.4"
   },
   "dependencies": {
+    "@hashgraph/sdk": "^2.74.0",
+    "@openzeppelin/contracts": "^5.4.0",
     "@typechain/ethers-v6": "^0.5.0",
     "hardhat": "^2.17.3",
     "hardhat-abi-exporter": "^2.10.0",
