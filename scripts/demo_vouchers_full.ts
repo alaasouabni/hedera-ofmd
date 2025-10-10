@@ -32,6 +32,14 @@ import {
 import * as fs from "node:fs";
 import * as path from "node:path";
 import hre from "hardhat";
+import {
+  Wallet,
+  Signature,
+  Contract,
+  TypedDataField,
+  TypedDataDomain,
+} from "ethers";
+import { OracleFreeDollar } from "../typechain";
 
 type NewAcct = {
   label: "SPONSOR" | "MERCHANT" | "SUPPLIER";
@@ -58,6 +66,50 @@ async function main() {
       throw new Error("vOFD int64 overflow");
     return v;
   }
+
+  async function signPermit(
+    owner: Wallet,
+    token: OracleFreeDollar, // your OracleFreeDollar instance
+    spender: string,
+    value: bigint,
+    deadline: number
+  ) {
+    const [name, nonce, { chainId }] = await Promise.all([
+      token.name(),
+      token.nonces(owner.address),
+      owner.provider!.getNetwork(),
+    ]);
+
+    const domain: TypedDataDomain = {
+      name,
+      version: "1", // adjust if your ERC20PermitLight uses a different version
+      chainId, // bigint is fine here
+      verifyingContract: await token.getAddress(),
+    };
+
+    const types: Record<string, TypedDataField[]> = {
+      Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    };
+
+    const message = {
+      owner: owner.address,
+      spender,
+      value,
+      nonce,
+      deadline,
+    };
+
+    const sig = await owner.signTypedData(domain, types, message);
+    const { v, r, s } = Signature.from(sig);
+    return { v, r, s, deadline };
+  }
+
   // -------- Params (adjust if you want) --------
   const INIT_HBAR = 5; // each new account starts with 75 HBAR
   const ISSUE_HOFD = ethers.parseUnits("1000", 18); // sponsor backs 1000 hOFD
@@ -266,6 +318,35 @@ async function main() {
       gasLimit: 3_000_000n,
     })
   ).wait();
+
+  // const voucherSponsor = voucher.connect(sponsorWallet);
+  // console.log(
+  //   `\nISSUE (permit): Sponsor issues ${ethers.formatUnits(
+  //     ISSUE_HOFD,
+  //     18
+  //   )} hOFD worth of vOFD to Merchant`
+  // );
+
+  // const oneHourFromNow = Math.floor(Date.now() / 1000) + 3600;
+  // const { v, r, s, deadline } = await signPermit(
+  //   sponsorWallet,
+  //   ofd,
+  //   voucherAddr,
+  //   ISSUE_HOFD,
+  //   oneHourFromNow
+  // );
+
+  // await (
+  //   await voucherSponsor.issueVoucherWithPermit(
+  //     merchant.evmAddress,
+  //     ISSUE_HOFD,
+  //     deadline,
+  //     v,
+  //     r,
+  //     s,
+  //     { gasLimit: 3_000_000n }
+  //   )
+  // ).wait();
 
   // --------------------------------------------------------------------------
   // 5) Merchant gives Crypto Allowance to VoucherModuleHTS for SPEND amount

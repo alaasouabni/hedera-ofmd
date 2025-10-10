@@ -12,7 +12,7 @@ contract HTSAssociationHelper is HederaTokenService {
         int rc = HederaTokenService.associateToken(msg.sender, token);
         require(
             rc == HederaResponseCodes.SUCCESS ||
-            rc == HederaResponseCodes.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT,
+                rc == HederaResponseCodes.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT,
             "associate failed"
         );
         emit Associated(msg.sender, token, rc);

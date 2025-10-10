@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+/* ---- design tokens ---- */
+:root {
+  --bg: #f7f8fb;
+  --ink: #0b1220;
+  --muted: #667085;
+
+  --surface: #ffffff;
+  --surface-2: #f3f5f9;
+  --border: rgba(10, 19, 40, 0.08);
+
+  --grad-1: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.65),
+    rgba(255, 255, 255, 0.35)
+  );
+  --ring: rgba(59, 130, 246, 0.55);
+}
+
+.dark {
+  --bg: #070b14;
+  --ink: #e6e9ef;
+  --muted: #a2a9b7;
+
+  --surface: rgba(14, 20, 33, 0.75);
+  --surface-2: rgba(20, 28, 45, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
+
+  --grad-1: linear-gradient(
+    180deg,
+    rgba(18, 24, 39, 0.85),
+    rgba(18, 24, 39, 0.65)
+  );
+  --ring: rgba(147, 197, 253, 0.6);
+}
+
+/* ---- app background ---- */
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  background: radial-gradient(
+      1200px 700px at 100% -120px,
+      #dbeafe 0%,
+      transparent 50%
+    ),
+    radial-gradient(900px 500px at -20% -120px, #fce7f3 0%, transparent 50%),
+    var(--bg);
+  color: var(--ink);
+}
+
+/* ---- glass card base ---- */
+.card {
+  background: var(--grad-1);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--ink);
+  box-shadow: var(--shadow, 0 10px 30px -12px rgba(0, 0, 0, 0.15));
+}
+
+/* soft focus ring for inputs/buttons */
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}

@@ -18,6 +18,18 @@ interface IERC20 {
     function decimals() external view returns (uint8);
 }
 
+interface IERC20PermitLike {
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+}
+
 contract VoucherModuleHTS is HederaTokenService, KeyHelper, ReentrancyGuard {
     uint8 constant V_DECIMALS = 8;
 
@@ -199,6 +211,61 @@ contract VoucherModuleHTS is HederaTokenService, KeyHelper, ReentrancyGuard {
         emit Issue(msg.sender, merchant, amount);
     }
 
+    /// Single-tx: collect hOFD via permit, mint vOFD, send to merchant
+    function issueVoucherWithPermit(
+        address merchant,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlySponsor nonReentrant {
+        require(isMerchant[merchant], "not-merchant");
+        require(amount > 0, "zero-amount");
+
+        // Hedera HTS checks
+        (int rK, bool kM) = HederaTokenService.isKyc(vOFD, merchant);
+        (int rF, bool fM) = HederaTokenService.isFrozen(vOFD, merchant);
+        require(
+            rK == HederaResponseCodes.SUCCESS && kM,
+            "merchant KYC missing"
+        );
+        require(rF == HederaResponseCodes.SUCCESS && !fM, "merchant frozen");
+
+        // 1) Permit: sponsor authorizes THIS contract to spend `amount` hOFD
+        IERC20PermitLike(hOFD).permit(
+            msg.sender,
+            address(this),
+            amount,
+            deadline,
+            v,
+            r,
+            s
+        );
+
+        // 2) Pull hOFD from sponsor (no approve()!)
+        IERC20(hOFD).transferFrom(msg.sender, address(this), amount);
+
+        // 3) Convert to v-units and mint voucher to treasury, then transfer to merchant
+        int64 vAmt = _toVUnits(amount); // make sure this fits int64
+        (int rcMint, , ) = HederaTokenService.mintToken(
+            vOFD,
+            vAmt,
+            new bytes[](0)
+        );
+        require(rcMint == HederaResponseCodes.SUCCESS, "mint");
+
+        int rc = HederaTokenService.transferToken(
+            vOFD,
+            address(this),
+            merchant,
+            vAmt
+        );
+        require(rc == HederaResponseCodes.SUCCESS, "xfer to merchant");
+
+        emit Issue(msg.sender, merchant, amount);
+    }
+
     // 2) Merchant spends voucher to Supplier (HTS transfer)
     function spendVoucher(
         address supplier,
@@ -239,7 +306,7 @@ contract VoucherModuleHTS is HederaTokenService, KeyHelper, ReentrancyGuard {
             vAmt
         );
         require(rcT == HederaResponseCodes.SUCCESS, "xfer supplier->treasury");
-        
+
         // Burn from treasury
         (int rcB, ) = HederaTokenService.burnToken(vOFD, vAmt, new int64[](0));
         require(rcB == HederaResponseCodes.SUCCESS, "burn");
