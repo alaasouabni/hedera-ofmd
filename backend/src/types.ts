@@ -1,0 +1,25 @@
+export type PositionRow = {
+  id: string;
+  owner: string;
+  original: string;
+  collateral: string;
+  openedBlock: bigint;
+  openedTx: string;
+  openedTs: number;
+  minted: string;
+  price: string;
+  reservePPM: number;
+  riskPPM: number;
+  minColl: string;
+  limit: string;
+  start: number;
+  cooldown: number;
+  expiration: number;
+  challenged: string;
+  challengePeriod: number;
+  ofdAddr: string;
+  collBal: string;
+  collDecimals: number;
+  collSymbol: string;
+  priceDecimals: number;
+};

@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model IndexState {
+  id          Int      @id @default(1)
+  lastScanned BigInt   @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model Position {
+  id          String   @id @db.VarChar(42) // position address
+  owner       String   @db.VarChar(42)
+  original    String   @db.VarChar(42)
+  collateral  String   @db.VarChar(42)
+  openedBlock BigInt
+  openedTx    String   @db.VarChar(66)
+  openedTs    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // details
+  minted          Decimal @db.Decimal(78, 0)
+  price           Decimal @db.Decimal(78, 0)
+  reservePPM      Int
+  riskPPM         Int
+  minColl         Decimal @db.Decimal(78, 0)
+  limit           Decimal @db.Decimal(78, 0)
+  start           Int
+  cooldown        Int
+  expiration      Int
+  challenged      Decimal @db.Decimal(78, 0)
+  challengePeriod Int
+  ofdAddr         String  @db.VarChar(42)
+  collBal         Decimal @db.Decimal(78, 0)
+  collDecimals    Int
+  collSymbol      String
+  priceDecimals   Int
+
+  challenges Challenge[]
+}
+
+model Challenge {
+  number       Int
+  positionId   String
+  challenger   String   @db.VarChar(42)
+  start        Int
+  size         Decimal  @db.Decimal(78, 0)
+  currentPrice Decimal  @db.Decimal(78, 0)
+  status       String // "open" | "closed"
+  updatedAt    DateTime @updatedAt
+  position     Position @relation(fields: [positionId], references: [id])
+
+  @@id([number, positionId])
+  @@index([positionId])
+}
+
+model Profile {
+  address     String   @id @db.VarChar(42) // lowercased hex
+  username    String   @unique
+  displayName String?
+  bio         String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuthNonce {
+  id        Int      @id @default(autoincrement())
+  address   String   @db.VarChar(42) // lowercased hex
+  nonce     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([address, used])
+}
+
+// prisma/schema.prisma
+model VoucherIssue {
+  id          Int    @id @default(autoincrement())
+  txHash      String
+  logIndex    Int
+  blockNumber BigInt
+  timestamp   Int
+  sponsor     String // lowercased
+  merchant    String // lowercased
+  amount      String // 18d string
+
+  @@unique([txHash, logIndex])
+  @@index([sponsor])
+  @@index([merchant])
+  @@index([blockNumber])
+}
+
+model VoucherSpend {
+  id          Int    @id @default(autoincrement())
+  txHash      String
+  logIndex    Int
+  blockNumber BigInt
+  timestamp   Int
+  merchant    String // lowercased
+  supplier    String // lowercased
+  amount      String // 18d string
+
+  @@unique([txHash, logIndex])
+  @@index([merchant])
+  @@index([supplier])
+  @@index([blockNumber])
+}
+
+model VoucherRedeem {
+  id          Int    @id @default(autoincrement())
+  txHash      String
+  logIndex    Int
+  blockNumber BigInt
+  timestamp   Int
+  supplier    String // lowercased
+  gross       String // 18d string
+  fee         String // 18d string
+  net         String // 18d string
+
+  @@unique([txHash, logIndex])
+  @@index([supplier])
+  @@index([blockNumber])
+}
+
+model VoucherIndexState {
+  id          Int    @id @default(1)
+  lastScanned BigInt @default(0)
+}
