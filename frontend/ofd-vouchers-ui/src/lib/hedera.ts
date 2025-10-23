@@ -39,6 +39,35 @@ function withNodes<T extends Transaction>(t: T): T {
   }
   return t;
 }
+
+// ---------- Mirror helpers (free) ----------
+function mirrorBase() {
+  switch (NET) {
+    case "mainnet":
+      return "https://mainnet-public.mirrornode.hedera.com";
+    default:
+      return "https://testnet.mirrornode.hedera.com";
+  }
+}
+
+async function fetchContractAccountIdFromMirror(
+  evmAddress: string
+): Promise<string> {
+  // /api/v1/contracts/{idOrAddress} returns a single contract object
+  const r = await fetch(`${mirrorBase()}/api/v1/contracts/${evmAddress}`);
+  if (!r.ok) {
+    throw new Error(
+      `Mirror query failed for contract ${evmAddress} (${r.status})`
+    );
+  }
+  const j = await r.json();
+  const contractId: string | undefined = j.contract_id || j.contractId || j.id; // support possible shapes
+  if (!contractId) {
+    throw new Error(`Mirror response missing contract_id for ${evmAddress}`);
+  }
+  return contractId; // e.g. "0.0.123456"
+}
+
 function freezeForWallet<T extends Transaction>(t: T): T {
   const payer = getHederaAccountId();
   t.setTransactionId(TransactionId.generate(AccountId.fromString(payer)));
@@ -102,20 +131,25 @@ export async function hederaApproveVOFDAllowance(
   amountHOFDWei: bigint
 ) {
   const amount = toVOFDInt64(amountHOFDWei);
-  const info = await new ContractInfoQuery()
-    .setContractId(ContractId.fromEvmAddress(0, 0, VOUCHER_MODULE))
-    .execute(nodeClient());
+
+  // ✅ Use Mirror Node to get the contract's account id (spender)
+  const spenderAccountIdStr = await fetchContractAccountIdFromMirror(
+    VOUCHER_MODULE
+  );
+  const spenderAccountId = AccountId.fromString(spenderAccountIdStr);
 
   const tokenId = TokenId.fromEvmAddress(0, 0, VOFD);
+
   const txn = freezeForWallet(
     new AccountAllowanceApproveTransaction()
       .approveTokenAllowance(
         tokenId,
         AccountId.fromString(hederaAccountId),
-        info.accountId!,
+        spenderAccountId,
         amount
       )
       .setMaxTransactionFee(new Hbar(5))
   );
+
   return await signAndExecute(txn);
 }

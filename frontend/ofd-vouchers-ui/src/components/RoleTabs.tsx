@@ -5,9 +5,9 @@ export function RoleTabs({
   onChange,
   allowed,
 }: {
-  value: "sponsor" | "merchant" | "supplier";
+  value: "sponsor" | "merchant" | "supplier" | "undefined";
   onChange: (v: any) => void;
-  allowed: Partial<Record<"sponsor" | "merchant" | "supplier", boolean>>;
+  allowed: Partial<Record<"sponsor" | "merchant" | "supplier" | "undefined", boolean>>;
 }) {
   const base = "h-9 px-3 rounded-lg text-sm transition";
   const tabs = ["sponsor", "merchant", "supplier"] as const;

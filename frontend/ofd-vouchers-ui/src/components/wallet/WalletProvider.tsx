@@ -24,12 +24,20 @@ import {
   HEDERA_NET,
 } from "../../lib/appkit";
 import { hederaNamespace } from "@hashgraph/hedera-wallet-connect";
-import { fetchOwner, fetchRoles } from "../../lib/utils"; // keep your existing utils
+import { fetchOwner, fetchRoles } from "../../lib/utils";
 
-type Roles = { sponsor: boolean; merchant: boolean; supplier: boolean };
+type Roles = { sponsor: boolean; merchant: boolean; supplier: boolean; undefined?: boolean };
+
 type WalletState = {
   hedera?: { accountId: string; evmAlias?: string };
   evm?: { address: string };
+  /** HBAR balance in tinybars + a human string */
+  hbar?: { tinybars: bigint; formatted: string };
+  /** reload HBAR balance */
+  refreshHbar: () => Promise<void>;
+  /** loading state for HBAR balance */
+  hbarLoading: boolean;
+
   roles: Roles;
   owner?: string;
   mismatch: boolean;
@@ -46,6 +54,8 @@ const WalletCtx = createContext<WalletState>({
   connect: async () => {},
   syncEvm: async () => {},
   disconnect: async () => {},
+  refreshHbar: async () => {},
+  hbarLoading: false,
 });
 
 const NET = HEDERA_NET;
@@ -58,6 +68,7 @@ function mirrorBase() {
       return "https://testnet.mirrornode.hedera.com";
   }
 }
+
 async function resolveHederaIdFromMirror(
   evmAddr: string
 ): Promise<string | undefined> {
@@ -68,6 +79,30 @@ async function resolveHederaIdFromMirror(
     return j?.account as string | undefined;
   } catch {
     return undefined;
+  }
+}
+
+/** Pretty format tinybars → HBAR string (trim trailing zeros, keep up to 8 dp) */
+function formatHbar(tiny: bigint): string {
+  const ONE_HBAR = 100_000_000n;
+  const whole = tiny / ONE_HBAR;
+  const frac = tiny % ONE_HBAR;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(8, "0").replace(/0+$/, "");
+  return `${whole.toString()}.${fracStr}`;
+}
+
+/** Fetch tinybar balance from Mirror Node for an account ID ("0.0.x"). */
+async function fetchHbarTinybars(accountId: string): Promise<bigint | null> {
+  try {
+    const r = await fetch(`${mirrorBase()}/api/v1/accounts/${accountId}`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const raw = j?.balance?.balance; // can be number or string
+    if (raw == null) return null;
+    return typeof raw === "string" ? BigInt(raw) : BigInt(raw);
+  } catch {
+    return null;
   }
 }
 
@@ -91,8 +126,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [hederaAccountId, setHederaAccountId] = useState<string | undefined>(
     undefined
   );
-
-  // Optional alias
   const [evmAlias, setEvmAlias] = useState<string | undefined>(undefined);
 
   // Roles/owner
@@ -106,12 +139,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // UI state
   const [connecting, setConnecting] = useState(false);
 
+  // HBAR balance
+  const [hbarTiny, setHbarTiny] = useState<bigint | null>(null);
+  const [hbarLoading, setHbarLoading] = useState(false);
+
   const mismatch = useMemo(() => {
     if (!evmAddress || !evmAlias) return false;
     return evmAddress.toLowerCase() !== evmAlias.toLowerCase();
   }, [evmAddress, evmAlias]);
 
-  // Register/unregister the EVM provider for the rest of your code
+  // Register/unregister EVM provider globally
   useEffect(() => {
     if (evmConnected && walletProvider) {
       registerEip155Provider(walletProvider as any);
@@ -120,7 +157,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [evmConnected, walletProvider]);
 
-  // Derive Hedera account from the current AppKit universal provider session
+  // Derive Hedera account from current session or mirror fallback
   useEffect(() => {
     const session = (universalProvider as any)?.session;
     const ns = session?.namespaces?.hedera;
@@ -128,7 +165,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (acct) {
       setHederaAccountId(acct.split(":")[2]);
     } else {
-      // fallback: resolve from mirror using EVM alias if needed
       (async () => {
         if (!evmAddress) {
           setHederaAccountId(undefined);
@@ -140,7 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [evmConnected, evmAddress]);
 
-  // publish both identities for lib/* modules (hedera.ts/evm)
+  // Publish identities for lib/*
   useEffect(() => {
     setSessionIdentities({
       hederaAccountId: hederaAccountId ?? null,
@@ -162,12 +198,32 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     })();
   }, [evmConnected, evmAddress]);
 
-  // Connect: open the modal **focused on Hedera** first so native is present
+  // HBAR balance loader
+  const refreshHbar = useCallback(async () => {
+    if (!hederaAccountId) {
+      setHbarTiny(null);
+      return;
+    }
+    setHbarLoading(true);
+    try {
+      const tiny = await fetchHbarTinybars(hederaAccountId);
+      setHbarTiny(tiny);
+    } finally {
+      setHbarLoading(false);
+    }
+  }, [hederaAccountId]);
+
+  // auto-load HBAR when Hedera account changes
+  useEffect(() => {
+    // fire and forget; don't block UI
+    refreshHbar();
+  }, [refreshHbar]);
+
+  // Connect: open the modal **focused on Hedera** so native is present
   const connect = useCallback(async () => {
     setConnecting(true);
     try {
       await open({ view: "Connect", namespace: hederaNamespace });
-      // if a wallet only paired eip155, let users explicitly add Hedera:
       const session = (universalProvider as any)?.session;
       const hasHedera = !!session?.namespaces?.hedera?.accounts?.length;
       if (!hasHedera) {
@@ -178,12 +234,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [open]);
 
-  // Explicit EVM account switch
+  // Explicit EVM switch
   const syncEvm = useCallback(async () => {
     await open({ view: "Connect", namespace: "eip155" });
   }, [open]);
 
-  // Disconnect everything, clean caches
+  // Full disconnect + cache clear
   const disconnect = useCallback(async () => {
     try {
       await appkitDisconnect();
@@ -199,11 +255,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     ? { accountId: hederaAccountId, evmAlias }
     : undefined;
 
+  const hbar =
+    hbarTiny != null
+      ? { tinybars: hbarTiny, formatted: formatHbar(hbarTiny) }
+      : undefined;
+
   return (
     <WalletCtx.Provider
       value={{
         hedera: hederaValue,
         evm: evmValue,
+        hbar,
+        refreshHbar,
+        hbarLoading,
+
         roles,
         owner,
         mismatch,

@@ -24,7 +24,9 @@ export function MerchantView() {
   const { hedera, evm } = useWallet();
   const [supplier, setSupplier] = useState("");
   const [amt, setAmt] = useState("0");
-  const [busy, setBusy] = useState<null | "assoc" | "approve" | "spend">(null);
+  const [busy, setBusy] = useState<
+    null | "assoc" | "spend-allow" | "spend-send"
+  >(null);
 
   const [data, setData] = useState<Awaited<
     ReturnType<typeof fetchDashboard>
@@ -55,41 +57,40 @@ export function MerchantView() {
     }
   }
 
-  async function approveCryptoAllowance() {
+  // ✅ One-click flow: approve VOFD crypto allowance (Hedera) → spendVoucher (EVM)
+  async function approveAndSpend() {
     try {
       if (!hedera?.accountId) return alert("Connect Hedera wallet first");
-      setBusy("approve");
-      const wei = toHOFDWeiMultiple1e10(amt);
-      await hederaApproveVOFDAllowance(hedera.accountId, wei);
-      alert("Approved VOFD Crypto Allowance");
-    } catch (e: any) {
-      alert(e?.message ?? String(e));
-    } finally {
-      setBusy(null);
-    }
-  }
+      if (!evm?.address) return alert("Connect EVM wallet first");
+      if (!supplier) return alert("Enter supplier address");
 
-  async function spend() {
-    try {
-      if (!evm?.address) return;
-      setBusy("spend");
+      const wei = toHOFDWeiMultiple1e10(amt); // throws if not multiple of 1e10
+
+      // 1) Hedera allowance
+      setBusy("spend-allow");
+      await hederaApproveVOFDAllowance(hedera.accountId, wei);
+
+      // 2) EVM spend
+      setBusy("spend-send");
       const signer = await evmWrite();
       const voucher = new readProviders.ethers.Contract(
         VOUCHER,
         voucherModuleAbi,
         signer
       );
-      const wei = toHOFDWeiMultiple1e10(amt);
       const tx = await voucher.spendVoucher(supplier, wei, {
         gasLimit: 2_000_000n,
       });
       await tx.wait();
+
+      // Refresh dashboard
       setData(
         await fetchDashboard({
           evmAddress: evm.address,
           hederaAccountId: hedera?.accountId,
         })
       );
+
       alert("Spent");
     } catch (e: any) {
       alert(e?.message ?? String(e));
@@ -116,32 +117,24 @@ export function MerchantView() {
             </Badge>
           </div>
 
+          {/* One-time association remains separate */}
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={associate}
-              disabled={!hedera?.accountId || busy === "assoc"}
+              disabled={
+                !hedera?.accountId ||
+                busy === "assoc" ||
+                busy === "spend-allow" ||
+                busy === "spend-send"
+              }
             >
               {busy === "assoc" ? "Associating…" : "Associate vOFD"}
             </Button>
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Amount (OFD)"
-                value={amt}
-                onChange={(e) => setAmt(e.target.value)}
-                className="w-44"
-              />
-              <Button
-                variant="outline"
-                onClick={approveCryptoAllowance}
-                disabled={!hedera?.accountId || busy === "approve"}
-              >
-                {busy === "approve" ? "Approving…" : "Approve Crypto Allowance"}
-              </Button>
-            </div>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-[1fr_160px_120px]">
+          {/* One-click Approve & Spend */}
+          <div className="grid gap-2 md:grid-cols-[1fr_160px_140px]">
             <Input
               placeholder="Supplier 0x…"
               value={supplier}
@@ -153,10 +146,20 @@ export function MerchantView() {
               onChange={(e) => setAmt(e.target.value)}
             />
             <Button
-              onClick={spend}
-              disabled={!evm?.address || busy === "spend"}
+              onClick={approveAndSpend}
+              disabled={
+                !evm?.address ||
+                !hedera?.accountId ||
+                busy === "assoc" ||
+                busy === "spend-allow" ||
+                busy === "spend-send"
+              }
             >
-              {busy === "spend" ? "Spending…" : "Spend"}
+              {busy === "spend-allow"
+                ? "Approving…"
+                : busy === "spend-send"
+                ? "Spending…"
+                : "Spend"}
             </Button>
           </div>
 

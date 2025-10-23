@@ -1,9 +1,6 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useWallet } from "../wallet/WalletProvider";
-import {
-  readProviders,
-  toHOFDWeiMultiple1e10,
-} from "../../lib/utils";
+import { readProviders, toHOFDWeiMultiple1e10 } from "../../lib/utils";
 import { voucherModuleAbi, erc20Abi } from "../../lib/contracts";
 
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/Card";
@@ -11,18 +8,17 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Select } from "../ui/Select";
 import { Badge } from "../ui/Badge";
-import { Shield, KeySquare, Building2 } from "lucide-react";
+import { Shield, KeySquare, Building2, RefreshCw } from "lucide-react";
 import { evmWrite } from "../../lib/evm";
 
 const VOUCHER = import.meta.env.VITE_VOUCHER_MODULE as string;
 const HOFD = import.meta.env.VITE_HOFD as string;
 const HAPI_ADMIN = "0.0.3120644";
+const RPC = import.meta.env.VITE_EVM_RPC as string; // used for a read-only provider
 
 export function AdminActions() {
   const { evm, hedera, owner } = useWallet();
-console.log("hedera", hedera);
-console.log("evm", evm);
-console.log("owner", owner);
+
   // Admin if connected Hedera wallet is HAPI admin, or EVM wallet is contract owner
   const isAdmin =
     hedera?.accountId === HAPI_ADMIN ||
@@ -42,6 +38,55 @@ console.log("owner", owner);
   const [amt, setAmt] = useState("0");
 
   const [busy, setBusy] = useState<null | "role" | "kyc" | "xfer">(null);
+
+  // ---------- hOFD balance state ----------
+  const [hofdRaw, setHofdRaw] = useState<bigint | null>(null);
+  const [hofdDec, setHofdDec] = useState<number>(18);
+  const [loadingBal, setLoadingBal] = useState(false);
+
+  const formattedHOFD = useMemo(() => {
+    if (hofdRaw == null) return null;
+    const s = readProviders.ethers.formatUnits(hofdRaw, hofdDec);
+    // Trim to something readable
+    const [i, d = ""] = s.split(".");
+    const dec = d.slice(0, 6).replace(/0+$/, "");
+    return dec ? `${i}.${dec}` : i;
+  }, [hofdRaw, hofdDec]);
+
+  const refreshHOFD = useCallback(async () => {
+    if (!evm?.address) {
+      setHofdRaw(null);
+      return;
+    }
+    setLoadingBal(true);
+    try {
+      // read-only JSON-RPC provider
+      const provider = new readProviders.ethers.JsonRpcProvider(RPC);
+      const erc20 = new readProviders.ethers.Contract(HOFD, erc20Abi, provider);
+      const [bal, dec] = (await Promise.all([
+        erc20.balanceOf(evm.address),
+        erc20.decimals(),
+      ])) as [bigint, number];
+      setHofdRaw(bal);
+      setHofdDec(dec ?? 18);
+    } catch (e) {
+      console.error("Failed to load hOFD balance:", e);
+      setHofdRaw(null);
+    } finally {
+      setLoadingBal(false);
+    }
+  }, [evm?.address]);
+
+  useEffect(() => {
+    refreshHOFD();
+  }, [refreshHOFD]);
+
+  // also refresh after each admin action completes
+  useEffect(() => {
+    if (busy === null) {
+      refreshHOFD();
+    }
+  }, [busy, refreshHOFD]);
 
   async function grantRole() {
     try {
@@ -115,6 +160,37 @@ console.log("owner", owner);
         <span className="mr-2">Admin Console</span>
         <Badge tone="blue">{hedera?.accountId ?? "—"}</Badge>
       </div>
+
+      {/* -------- Wallet Balance card -------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Wallet Balance (hOFD)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-between">
+          <div className="flex flex-col">
+            <div className="text-xl font-semibold">
+              {evm?.address
+                ? formattedHOFD ?? (loadingBal ? "Loading…" : "0")
+                : "—"}
+            </div>
+            <div className="text-xs text-[var(--muted)] break-all">
+              {evm?.address ?? "Connect wallet to view balance"}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={refreshHOFD}
+            disabled={!evm?.address || loadingBal}
+          >
+            <RefreshCw size={14} className={loadingBal ? "animate-spin" : ""} />
+            <span className="ml-2">
+              {loadingBal ? "Refreshing…" : "Refresh"}
+            </span>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

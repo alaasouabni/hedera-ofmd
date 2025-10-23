@@ -1,18 +1,32 @@
+// App.tsx
 import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppShell } from "./components/layout/AppShell";
 import { Dashboard } from "./pages/Dashboard";
+import Positions from "./pages/Positions"; // ⬅ new page
 import { AdminActions } from "./components/actions/AdminActions";
-// import { MismatchBanner } from "./components/wallet/MismatchBanner";
+import PositionDetail from "./components/positions/PositionDetailsCard.backend";
 
-// Views now fetch their own data, so App stays lean.
 export default function App() {
   return (
-    <AppShell>
-      {/* <MismatchBanner /> */}
-      <div className="h-3" />
-      <Dashboard />
-      <div className="h-6" />
-      <AdminActions />
-    </AppShell>
+    <BrowserRouter>
+      <AppShell>
+        <div className="h-3" />
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <>
+                <Dashboard />
+                <div className="h-6" />
+                <AdminActions />
+              </>
+            }
+          />
+          <Route path="/positions" element={<Positions />} />
+          <Route path="/position/:address" element={<PositionDetail />} />
+        </Routes>
+      </AppShell>
+    </BrowserRouter>
   );
 }

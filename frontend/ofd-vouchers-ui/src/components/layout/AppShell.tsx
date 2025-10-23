@@ -1,5 +1,6 @@
+import { AccountMenu } from "../account/AccountMenu";
+import { ProfileGate } from "../profile/ProfileGate";
 import { ThemeToggle } from "../ThemeToggle";
-import { WalletBadge } from "../wallet/WalletBadge";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -18,12 +19,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <WalletBadge />
+              <AccountMenu />
             </div>
           </div>
         </div>
       </header>
 
+      <ProfileGate />
+      <div id="portal-root" />
       <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
 
       <footer className="mx-auto max-w-7xl px-4 pb-8">
