@@ -13,7 +13,7 @@ import { evmWrite } from "../../lib/evm";
 
 const VOUCHER = import.meta.env.VITE_VOUCHER_MODULE as string;
 const HOFD = import.meta.env.VITE_HOFD as string;
-const HAPI_ADMIN = "0.0.3120644";
+const HAPI_ADMIN = import.meta.env.VITE_HAPI_ADMIN as string;
 const RPC = import.meta.env.VITE_EVM_RPC as string; // used for a read-only provider
 
 export function AdminActions() {
