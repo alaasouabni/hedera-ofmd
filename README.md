@@ -17,6 +17,9 @@
 > - ✳ OFDPS (governance) contract **deployed** but **not yet integrated** into the UI/backend
 
 [Pitch Deck](https://www.canva.com/design/DAG2iN6LR9c/fa2n7LV_gaMaxS3PMav03g/view?utm_content=DAG2iN6LR9c&utm_campaign=designshare&utm_medium=link2&utm_source=uniquelinks&utlId=hfd428d48e5)
+<p></p>
+
+[Hedera Course Certificate](https://drive.google.com/file/d/1a9MHgjBEtruHSXc8avbS1lNoyR4vzgz1/view?usp=sharing)
 
 ---
 
